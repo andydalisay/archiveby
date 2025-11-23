@@ -3,6 +3,8 @@ import { supabase } from '../supabaseClient';
 import { useTheme } from '../ThemeContext';
 import Profile from './Profile';
 import Notifications from './Notifications';
+import PostEditor from './PostEditor';
+import PostRenderer from './PostRenderer';
 
 function Feed({ user }) {
   const [posts, setPosts] = useState([]);
@@ -20,6 +22,9 @@ function Feed({ user }) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [follows, setFollows] = useState({});
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [showPostMenu, setShowPostMenu] = useState({});
+  const [showBlogEditor, setShowBlogEditor] = useState(false);
+  const [viewingPost, setViewingPost] = useState(null);
 
   const MAX_CHARS = 280;
   const { colors, darkMode, toggleDarkMode } = useTheme();
@@ -145,6 +150,60 @@ function Feed({ user }) {
     } catch (error) {
       alert(error.message);
     }
+  };
+
+  const togglePostMenu = (postId) => {
+    setShowPostMenu({
+      ...showPostMenu,
+      [postId]: !showPostMenu[postId]
+    });
+  };
+
+  const handleShare = async (postId) => {
+    const url = `${window.location.origin}/post/${postId}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      alert('Link copied to clipboard!');
+      setShowPostMenu({ ...showPostMenu, [postId]: false });
+    } catch (error) {
+      alert('Failed to copy link');
+    }
+  };
+
+  const handleReport = (postId) => {
+    alert('Report functionality coming soon!');
+    setShowPostMenu({ ...showPostMenu, [postId]: false });
+  };
+
+  const handleCreateBlog = async (blogData) => {
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .insert([
+          {
+            user_id: user.id,
+            post_type: 'blog',
+            title: blogData.title,
+            blocks: blogData.blocks,
+            country: blogData.country,
+            duration: blogData.duration,
+            trip_type: blogData.tripType,
+            hashtags: blogData.hashtags,
+            content: '', // Empty content for blog posts
+          },
+        ])
+        .select();
+
+      if (error) throw error;
+      setShowBlogEditor(false);
+      fetchPosts();
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  const handleViewPost = (post) => {
+    setViewingPost(post);
   };
 
   const fetchPosts = async () => {
@@ -564,6 +623,7 @@ function Feed({ user }) {
       color: colors.text,
       border: `1px solid ${colors.border}`,
       transition: 'all 0.2s ease',
+      overflow: 'hidden',
     },
     postHeader: {
       display: 'flex',
@@ -780,6 +840,240 @@ function Feed({ user }) {
       color: colors.textSecondary,
       padding: '2rem',
     },
+    postMenuButton: {
+      padding: '0.5rem',
+      background: 'transparent',
+      color: colors.text,
+      border: 'none',
+      borderRadius: '8px',
+      cursor: 'pointer',
+      fontSize: '1.2rem',
+      fontWeight: 'bold',
+      transition: 'all 0.2s ease',
+      position: 'relative',
+    },
+    postMenuDropdown: {
+      position: 'absolute',
+      top: '100%',
+      right: 0,
+      background: colors.cardBackground,
+      border: `1.5px solid ${colors.border}`,
+      borderRadius: '8px',
+      boxShadow: `0 4px 12px ${colors.shadow}`,
+      zIndex: 100,
+      minWidth: '150px',
+      marginTop: '0.25rem',
+      overflow: 'hidden',
+    },
+    postMenuItem: {
+      display: 'block',
+      width: '100%',
+      padding: '0.75rem 1rem',
+      background: colors.cardBackground,
+      color: colors.text,
+      border: 'none',
+      textAlign: 'left',
+      cursor: 'pointer',
+      fontSize: '0.875rem',
+      fontWeight: '600',
+      transition: 'all 0.2s ease',
+      borderBottom: `1px solid ${colors.border}`,
+    },
+    postMenuItemDanger: {
+      display: 'block',
+      width: '100%',
+      padding: '0.75rem 1rem',
+      background: colors.cardBackground,
+      color: colors.danger,
+      border: 'none',
+      textAlign: 'left',
+      cursor: 'pointer',
+      fontSize: '0.875rem',
+      fontWeight: '600',
+      transition: 'all 0.2s ease',
+    },
+    blogPreview: {
+      marginBottom: '0',
+    },
+    blogImageContainer: {
+      position: 'relative',
+      marginBottom: '1.5rem',
+      marginLeft: 'calc(-1.5rem - 1px)',
+      marginRight: 'calc(-1.5rem - 1px)',
+      marginTop: 'calc(-1.5rem - 1px)',
+      width: 'calc(100% + 3rem + 2px)',
+      borderRadius: '12px 12px 0 0',
+      overflow: 'hidden',
+    },
+    blogImage: {
+      width: '100%',
+      height: '300px',
+      objectFit: 'cover',
+      display: 'block',
+    },
+    categoryTag: {
+      position: 'absolute',
+      top: '1rem',
+      left: '1.5rem',
+      background: 'rgba(255, 248, 240, 0.95)',
+      color: '#d97706',
+      padding: '0.5rem 1.25rem',
+      borderRadius: '20px',
+      fontSize: '0.9rem',
+      fontWeight: '600',
+      textTransform: 'lowercase',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+    },
+    blogContentWrapper: {
+      display: 'flex',
+      gap: '1.5rem',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+    },
+    blogLeftSection: {
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '0.75rem',
+    },
+    blogRightSection: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '0.75rem',
+      alignItems: 'flex-end',
+      justifyContent: 'space-between',
+      minHeight: '100%',
+    },
+    blogUserSection: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '0.75rem',
+      marginBottom: '0.5rem',
+    },
+    userAvatar: {
+      width: '40px',
+      height: '40px',
+      borderRadius: '50%',
+      background: colors.pink,
+      color: 'white',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontWeight: '700',
+      fontSize: '0.9rem',
+    },
+    blogUsername: {
+      fontWeight: '600',
+      fontSize: '0.95rem',
+      color: colors.text,
+    },
+    blogDate: {
+      fontSize: '0.8rem',
+      color: colors.textSecondary,
+      marginTop: '0.15rem',
+    },
+    blogTitle: {
+      fontSize: '1.5rem',
+      fontWeight: '700',
+      margin: 0,
+      color: colors.text,
+      textAlign: 'left',
+    },
+    blogMetadata: {
+      display: 'flex',
+      gap: '0.5rem',
+      flexWrap: 'wrap',
+    },
+    blogHashtags: {
+      display: 'flex',
+      gap: '0.5rem',
+      flexWrap: 'wrap',
+    },
+    metadataChip: {
+      padding: '0.375rem 0.75rem',
+      background: colors.background,
+      border: `1px solid ${colors.border}`,
+      borderRadius: '16px',
+      fontSize: '0.8rem',
+      fontWeight: '600',
+      color: colors.text,
+    },
+    seeMoreLink: {
+      color: colors.pink,
+      fontSize: '0.875rem',
+      fontWeight: '600',
+      cursor: 'pointer',
+      textDecoration: 'underline',
+      transition: 'all 0.2s ease',
+      background: 'transparent',
+      border: 'none',
+      padding: 0,
+      marginTop: 'auto',
+    },
+    blogActionsHorizontal: {
+      display: 'flex',
+      flexDirection: 'row',
+      gap: '0.5rem',
+    },
+    seeMoreButton: {
+      padding: '0.625rem 1.25rem',
+      background: colors.pink,
+      color: 'white',
+      border: 'none',
+      borderRadius: '8px',
+      fontSize: '0.875rem',
+      fontWeight: '600',
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+      marginTop: '0.5rem',
+    },
+    modalOverlay: {
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: 'rgba(0, 0, 0, 0.7)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 1000,
+      padding: '1rem',
+    },
+    modalContent: {
+      background: colors.cardBackground,
+      borderRadius: '12px',
+      maxWidth: '900px',
+      width: '100%',
+      maxHeight: '90vh',
+      overflow: 'auto',
+      position: 'relative',
+      boxShadow: `0 8px 32px ${colors.shadow}`,
+      color: colors.text,
+    },
+    modalHeader: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: '1.5rem',
+      borderBottom: `1px solid ${colors.border}`,
+      position: 'sticky',
+      top: 0,
+      background: colors.cardBackground,
+      zIndex: 1,
+    },
+    closeButton: {
+      background: 'transparent',
+      border: 'none',
+      fontSize: '1.5rem',
+      cursor: 'pointer',
+      color: colors.text,
+      padding: '0.5rem',
+      lineHeight: 1,
+    },
+    modalBody: {
+      padding: '1.5rem',
+    },
   };
 
   return (
@@ -848,16 +1142,25 @@ function Feed({ user }) {
             >
               {remainingChars} characters remaining
             </span>
-            <button
-              type="submit"
-              disabled={loading || remainingChars < 0}
-              style={{
-                ...styles.postButton,
-                opacity: loading || remainingChars < 0 ? 0.5 : 1,
-              }}
-            >
-              {loading ? 'Posting...' : 'Post'}
-            </button>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                type="submit"
+                disabled={loading || remainingChars < 0}
+                style={{
+                  ...styles.postButton,
+                  opacity: loading || remainingChars < 0 ? 0.5 : 1,
+                }}
+              >
+                {loading ? 'Posting...' : 'Post'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowBlogEditor(true)}
+                style={{...styles.postButton, background: colors.navy}}
+              >
+                Create Blog Post
+              </button>
+            </div>
           </div>
         </form>
       </div>
@@ -922,28 +1225,137 @@ function Feed({ user }) {
                 </div>
               ) : (
                 <>
-                  <p style={styles.postContent}>{post.content}</p>
-                  <div style={styles.postActions}>
-                    <button
-                      onClick={() => toggleLike(post.id)}
-                      style={likes[post.id]?.userLiked ? styles.likeButtonActive : styles.likeButton}
-                    >
-                      {likes[post.id]?.userLiked ? '❤️' : '🤍'} {likes[post.id]?.count || 0}
-                    </button>
-                    <button onClick={() => toggleComments(post.id)} style={styles.commentButton}>
-                      💬 {comments[post.id]?.length || 0}
-                    </button>
-                    {post.user_id === user.id && (
-                      <>
-                        <button onClick={() => startEdit(post)} style={styles.editButton}>
-                          Edit
+                  {post.post_type === 'blog' || post.title ? (
+                    <div style={styles.blogPreview}>
+                      {post.blocks && post.blocks[0] && post.blocks[0].type === 'image' && (
+                        <div style={styles.blogImageContainer}>
+                          <img
+                            src={post.blocks[0].settings?.url || post.blocks[0].url}
+                            alt={post.blocks[0].settings?.alt || post.blocks[0].alt || 'Blog image'}
+                            style={styles.blogImage}
+                          />
+                          {post.trip_type && (
+                            <div style={styles.categoryTag}>
+                              {post.trip_type.toLowerCase()}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <div style={styles.blogContentWrapper}>
+                        <div style={styles.blogLeftSection}>
+                          <div style={styles.blogUserSection}>
+                            <div style={styles.userAvatar}>
+                              {post.user_id.substring(0, 2).toUpperCase()}
+                            </div>
+                            <div>
+                              <div style={styles.blogUsername}>
+                                User {post.user_id.substring(0, 8)}
+                              </div>
+                              <div style={styles.blogDate}>
+                                {new Date(post.created_at).toLocaleDateString('en-GB', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric'
+                                }).replace(/\//g, '/')}
+                              </div>
+                            </div>
+                          </div>
+                          <h2 style={styles.blogTitle}>{post.title}</h2>
+                          <div style={styles.blogMetadata}>
+                            {post.country && (
+                              <span style={styles.metadataChip}>📍 {post.country}</span>
+                            )}
+                            {post.duration && (
+                              <span style={styles.metadataChip}>⏱️ {post.duration}</span>
+                            )}
+                          </div>
+                          <div style={styles.blogHashtags}>
+                            {post.hashtags && post.hashtags.split(' ').filter(tag => tag.trim()).map((tag, index) => (
+                              <span key={index} style={styles.metadataChip}>
+                                {tag.startsWith('#') ? tag : `#${tag}`}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <div style={styles.blogRightSection}>
+                          <div style={styles.blogActionsHorizontal}>
+                            <button
+                              onClick={() => toggleLike(post.id)}
+                              style={likes[post.id]?.userLiked ? styles.likeButtonActive : styles.likeButton}
+                            >
+                              {likes[post.id]?.userLiked ? '❤️' : '🤍'} {likes[post.id]?.count || 0}
+                            </button>
+                            <button onClick={() => toggleComments(post.id)} style={styles.commentButton}>
+                              💬 {comments[post.id]?.length || 0}
+                            </button>
+                          </div>
+                          <button
+                            onClick={() => handleViewPost(post)}
+                            style={styles.seeMoreLink}
+                          >
+                            See more
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p style={styles.postContent}>{post.content}</p>
+                  )}
+                  {!(post.post_type === 'blog' || post.title) && (
+                    <div style={styles.postActions}>
+                      <button
+                        onClick={() => toggleLike(post.id)}
+                        style={likes[post.id]?.userLiked ? styles.likeButtonActive : styles.likeButton}
+                      >
+                        {likes[post.id]?.userLiked ? '❤️' : '🤍'} {likes[post.id]?.count || 0}
+                      </button>
+                      <button onClick={() => toggleComments(post.id)} style={styles.commentButton}>
+                        💬 {comments[post.id]?.length || 0}
+                      </button>
+                      <div style={{ marginLeft: 'auto', position: 'relative' }}>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); togglePostMenu(post.id); }}
+                          style={styles.postMenuButton}
+                        >
+                          ⋯
                         </button>
-                        <button onClick={() => deletePost(post.id)} style={styles.deleteButton}>
-                          Delete
-                        </button>
-                      </>
-                    )}
-                  </div>
+                        {showPostMenu[post.id] && (
+                          <div style={styles.postMenuDropdown}>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleShare(post.id); }}
+                              style={styles.postMenuItem}
+                            >
+                              🔗 Share
+                            </button>
+                            {post.user_id === user.id && (
+                              <>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); startEdit(post); setShowPostMenu({ ...showPostMenu, [post.id]: false }); }}
+                                  style={styles.postMenuItem}
+                                >
+                                  ✏️ Edit
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); deletePost(post.id); }}
+                                  style={styles.postMenuItemDanger}
+                                >
+                                  🗑️ Delete
+                                </button>
+                              </>
+                            )}
+                            {post.user_id !== user.id && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleReport(post.id); }}
+                                style={styles.postMenuItemDanger}
+                              >
+                                ⚠️ Report
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {showingComments[post.id] && (
                     <div style={styles.commentsSection}>
@@ -993,6 +1405,43 @@ function Feed({ user }) {
           ))
         )}
       </div>
+
+      {showBlogEditor && (
+        <div style={styles.modalOverlay} onClick={() => setShowBlogEditor(false)}>
+          <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <h2>Create Blog Post</h2>
+              <button onClick={() => setShowBlogEditor(false)} style={styles.closeButton}>
+                &times;
+              </button>
+            </div>
+            <div style={styles.modalBody}>
+              <PostEditor onSave={handleCreateBlog} onCancel={() => setShowBlogEditor(false)} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewingPost && (
+        <div style={styles.modalOverlay} onClick={() => setViewingPost(null)}>
+          <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <div>
+                <div style={styles.postHeaderLeft}>
+                  <strong>User {viewingPost.user_id.substring(0, 8)}</strong>
+                </div>
+                <span style={styles.postDate}>{getRelativeTime(viewingPost.created_at)}</span>
+              </div>
+              <button onClick={() => setViewingPost(null)} style={styles.closeButton}>
+                &times;
+              </button>
+            </div>
+            <div style={styles.modalBody}>
+              <PostRenderer post={viewingPost} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
