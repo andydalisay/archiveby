@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useTheme } from '../ThemeContext';
 import Profile from './Profile';
+import Notifications from './Notifications';
 
 function Feed({ user }) {
   const [posts, setPosts] = useState([]);
@@ -11,8 +12,14 @@ function Feed({ user }) {
   const [editingPost, setEditingPost] = useState(null);
   const [editContent, setEditContent] = useState('');
   const [likes, setLikes] = useState({});
+  const [comments, setComments] = useState({});
+  const [newComment, setNewComment] = useState({});
+  const [showingComments, setShowingComments] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
   const [showProfile, setShowProfile] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [follows, setFollows] = useState({});
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   const MAX_CHARS = 280;
   const { colors, darkMode, toggleDarkMode } = useTheme();
@@ -20,10 +27,52 @@ function Feed({ user }) {
   useEffect(() => {
     fetchPosts();
     fetchLikes();
-  }, []);
+    fetchFollows();
+    fetchUnreadNotifications();
+
+    // Real-time subscriptions
+    const postsSubscription = supabase
+      .channel('posts')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => {
+        fetchPosts();
+      })
+      .subscribe();
+
+    const likesSubscription = supabase
+      .channel('likes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'likes' }, () => {
+        fetchLikes();
+      })
+      .subscribe();
+
+    const commentsSubscription = supabase
+      .channel('comments')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, () => {
+        fetchAllComments();
+      })
+      .subscribe();
+
+    const notificationsSubscription = supabase
+      .channel('user-notifications')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${user.id}`
+      }, () => {
+        fetchUnreadNotifications();
+      })
+      .subscribe();
+
+    return () => {
+      postsSubscription.unsubscribe();
+      likesSubscription.unsubscribe();
+      commentsSubscription.unsubscribe();
+      notificationsSubscription.unsubscribe();
+    };
+  }, [user.id]);
 
   useEffect(() => {
-    // Filter posts based on search query
     if (searchQuery.trim() === '') {
       setFilteredPosts(posts);
     } else {
@@ -35,6 +84,68 @@ function Feed({ user }) {
       setFilteredPosts(filtered);
     }
   }, [searchQuery, posts]);
+
+  const fetchUnreadNotifications = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('read', false);
+
+      if (error) throw error;
+      setUnreadNotifications(data?.length || 0);
+    } catch (error) {
+      console.error('Error fetching unread notifications:', error.message);
+    }
+  };
+
+  const fetchFollows = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('follows')
+        .select('follower_id, following_id');
+
+      if (error) throw error;
+
+      const followsMap = {};
+      data.forEach(follow => {
+        // Track who the current user is following
+        if (follow.follower_id === user.id) {
+          followsMap[follow.following_id] = true;
+        }
+      });
+      setFollows(followsMap);
+    } catch (error) {
+      console.error('Error fetching follows:', error.message);
+    }
+  };
+
+  const toggleFollow = async (userId) => {
+    const isFollowing = follows[userId];
+
+    try {
+      if (isFollowing) {
+        const { error } = await supabase
+          .from('follows')
+          .delete()
+          .eq('follower_id', user.id)
+          .eq('following_id', userId);
+
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('follows')
+          .insert([{ follower_id: user.id, following_id: userId }]);
+
+        if (error) throw error;
+      }
+
+      fetchFollows();
+    } catch (error) {
+      alert(error.message);
+    }
+  };
 
   const fetchPosts = async () => {
     try {
@@ -59,7 +170,6 @@ function Feed({ user }) {
 
       if (error) throw error;
 
-      // Create a map of post_id -> {count, userLiked}
       const likesMap = {};
       data.forEach(like => {
         if (!likesMap[like.post_id]) {
@@ -76,12 +186,33 @@ function Feed({ user }) {
     }
   };
 
+  const fetchAllComments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('comments')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      const commentsMap = {};
+      data.forEach(comment => {
+        if (!commentsMap[comment.post_id]) {
+          commentsMap[comment.post_id] = [];
+        }
+        commentsMap[comment.post_id].push(comment);
+      });
+      setComments(commentsMap);
+    } catch (error) {
+      console.error('Error fetching comments:', error.message);
+    }
+  };
+
   const toggleLike = async (postId) => {
     const isLiked = likes[postId]?.userLiked;
 
     try {
       if (isLiked) {
-        // Unlike
         const { error } = await supabase
           .from('likes')
           .delete()
@@ -90,7 +221,6 @@ function Feed({ user }) {
 
         if (error) throw error;
       } else {
-        // Like
         const { error } = await supabase
           .from('likes')
           .insert([{ post_id: postId, user_id: user.id }]);
@@ -101,6 +231,54 @@ function Feed({ user }) {
       fetchLikes();
     } catch (error) {
       alert(error.message);
+    }
+  };
+
+  const addComment = async (postId) => {
+    const content = newComment[postId];
+    if (!content || !content.trim()) return;
+
+    try {
+      const { error } = await supabase
+        .from('comments')
+        .insert([{
+          post_id: postId,
+          user_id: user.id,
+          content: content.trim()
+        }]);
+
+      if (error) throw error;
+
+      setNewComment({ ...newComment, [postId]: '' });
+      fetchAllComments();
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  const deleteComment = async (commentId, postId) => {
+    if (!window.confirm('Delete this comment?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('comments')
+        .delete()
+        .eq('id', commentId);
+
+      if (error) throw error;
+      fetchAllComments();
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  const toggleComments = (postId) => {
+    setShowingComments({
+      ...showingComments,
+      [postId]: !showingComments[postId]
+    });
+    if (!showingComments[postId] && !comments[postId]) {
+      fetchAllComments();
     }
   };
 
@@ -252,6 +430,31 @@ function Feed({ user }) {
       cursor: 'pointer',
       marginRight: '0.5rem',
     },
+    notificationsButton: {
+      padding: '0.5rem 1rem',
+      backgroundColor: colors.primary,
+      color: '#fff',
+      border: 'none',
+      borderRadius: '4px',
+      cursor: 'pointer',
+      marginRight: '0.5rem',
+      position: 'relative',
+    },
+    notificationBadge: {
+      position: 'absolute',
+      top: '-5px',
+      right: '-5px',
+      backgroundColor: colors.danger,
+      color: '#fff',
+      borderRadius: '50%',
+      width: '20px',
+      height: '20px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: '0.7rem',
+      fontWeight: 'bold',
+    },
     profileButton: {
       padding: '0.5rem 1rem',
       backgroundColor: colors.primary,
@@ -343,6 +546,30 @@ function Feed({ user }) {
       justifyContent: 'space-between',
       marginBottom: '0.5rem',
       fontSize: '0.9rem',
+      alignItems: 'center',
+    },
+    postHeaderLeft: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '0.5rem',
+    },
+    followButton: {
+      padding: '0.25rem 0.5rem',
+      backgroundColor: colors.primary,
+      color: '#fff',
+      border: 'none',
+      borderRadius: '4px',
+      fontSize: '0.75rem',
+      cursor: 'pointer',
+    },
+    followingButton: {
+      padding: '0.25rem 0.5rem',
+      backgroundColor: colors.textSecondary,
+      color: '#fff',
+      border: 'none',
+      borderRadius: '4px',
+      fontSize: '0.75rem',
+      cursor: 'pointer',
     },
     postDate: {
       color: colors.textSecondary,
@@ -358,6 +585,7 @@ function Feed({ user }) {
       gap: '0.5rem',
       marginTop: '1rem',
       alignItems: 'center',
+      flexWrap: 'wrap',
     },
     likeButton: {
       padding: '0.4rem 0.8rem',
@@ -383,6 +611,15 @@ function Feed({ user }) {
       alignItems: 'center',
       gap: '0.3rem',
     },
+    commentButton: {
+      padding: '0.4rem 0.8rem',
+      backgroundColor: 'transparent',
+      color: colors.text,
+      border: `1px solid ${colors.border}`,
+      borderRadius: '4px',
+      fontSize: '0.85rem',
+      cursor: 'pointer',
+    },
     editButton: {
       padding: '0.4rem 0.8rem',
       backgroundColor: colors.success,
@@ -400,6 +637,62 @@ function Feed({ user }) {
       borderRadius: '4px',
       fontSize: '0.85rem',
       cursor: 'pointer',
+    },
+    commentsSection: {
+      marginTop: '1rem',
+      paddingTop: '1rem',
+      borderTop: `1px solid ${colors.border}`,
+    },
+    comment: {
+      padding: '0.75rem',
+      marginBottom: '0.5rem',
+      backgroundColor: colors.background,
+      borderRadius: '4px',
+    },
+    commentHeader: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      marginBottom: '0.25rem',
+      fontSize: '0.85rem',
+    },
+    commentContent: {
+      margin: 0,
+      fontSize: '0.9rem',
+      color: colors.text,
+    },
+    commentInput: {
+      display: 'flex',
+      gap: '0.5rem',
+      marginTop: '0.75rem',
+    },
+    commentTextarea: {
+      flex: 1,
+      padding: '0.5rem',
+      border: `1px solid ${colors.border}`,
+      borderRadius: '4px',
+      fontSize: '0.9rem',
+      backgroundColor: colors.background,
+      color: colors.text,
+      fontFamily: 'inherit',
+      resize: 'vertical',
+    },
+    commentSubmitButton: {
+      padding: '0.5rem 1rem',
+      backgroundColor: colors.primary,
+      color: '#fff',
+      border: 'none',
+      borderRadius: '4px',
+      cursor: 'pointer',
+      fontSize: '0.85rem',
+    },
+    deleteCommentButton: {
+      padding: '0.25rem 0.5rem',
+      backgroundColor: colors.danger,
+      color: '#fff',
+      border: 'none',
+      borderRadius: '4px',
+      cursor: 'pointer',
+      fontSize: '0.75rem',
     },
     editForm: {
       display: 'flex',
@@ -442,12 +735,28 @@ function Feed({ user }) {
 
   return (
     <div style={styles.container}>
+      {showNotifications && (
+        <Notifications
+          user={user}
+          onClose={() => {
+            setShowNotifications(false);
+            fetchUnreadNotifications();
+          }}
+        />
+      )}
+
       <div style={styles.header}>
         <h1>Social Feed</h1>
         <div style={styles.headerButtons}>
           <span style={styles.userEmail}>{user.email}</span>
           <button onClick={toggleDarkMode} style={styles.themeToggle}>
             {darkMode ? '☀️' : '🌙'}
+          </button>
+          <button onClick={() => setShowNotifications(true)} style={styles.notificationsButton}>
+            🔔
+            {unreadNotifications > 0 && (
+              <span style={styles.notificationBadge}>{unreadNotifications}</span>
+            )}
           </button>
           <button onClick={() => setShowProfile(true)} style={styles.profileButton}>
             Profile
@@ -513,7 +822,17 @@ function Feed({ user }) {
           filteredPosts.map((post) => (
             <div key={post.id} style={styles.post}>
               <div style={styles.postHeader}>
-                <strong>User {post.user_id.substring(0, 8)}</strong>
+                <div style={styles.postHeaderLeft}>
+                  <strong>User {post.user_id.substring(0, 8)}</strong>
+                  {post.user_id !== user.id && (
+                    <button
+                      onClick={() => toggleFollow(post.user_id)}
+                      style={follows[post.user_id] ? styles.followingButton : styles.followButton}
+                    >
+                      {follows[post.user_id] ? 'Following' : 'Follow'}
+                    </button>
+                  )}
+                </div>
                 <span style={styles.postDate}>{getRelativeTime(post.created_at)}</span>
               </div>
 
@@ -562,6 +881,9 @@ function Feed({ user }) {
                     >
                       {likes[post.id]?.userLiked ? '❤️' : '🤍'} {likes[post.id]?.count || 0}
                     </button>
+                    <button onClick={() => toggleComments(post.id)} style={styles.commentButton}>
+                      💬 {comments[post.id]?.length || 0}
+                    </button>
                     {post.user_id === user.id && (
                       <>
                         <button onClick={() => startEdit(post)} style={styles.editButton}>
@@ -573,6 +895,49 @@ function Feed({ user }) {
                       </>
                     )}
                   </div>
+
+                  {showingComments[post.id] && (
+                    <div style={styles.commentsSection}>
+                      {comments[post.id]?.map((comment) => (
+                        <div key={comment.id} style={styles.comment}>
+                          <div style={styles.commentHeader}>
+                            <strong>User {comment.user_id.substring(0, 8)}</strong>
+                            <div>
+                              <span style={{ color: colors.textSecondary, fontSize: '0.75rem', marginRight: '0.5rem' }}>
+                                {getRelativeTime(comment.created_at)}
+                              </span>
+                              {comment.user_id === user.id && (
+                                <button
+                                  onClick={() => deleteComment(comment.id, post.id)}
+                                  style={styles.deleteCommentButton}
+                                >
+                                  Delete
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <p style={styles.commentContent}>{comment.content}</p>
+                        </div>
+                      ))}
+                      <div style={styles.commentInput}>
+                        <textarea
+                          placeholder="Add a comment..."
+                          value={newComment[post.id] || ''}
+                          onChange={(e) =>
+                            setNewComment({ ...newComment, [post.id]: e.target.value })
+                          }
+                          style={styles.commentTextarea}
+                          rows="2"
+                        />
+                        <button
+                          onClick={() => addComment(post.id)}
+                          style={styles.commentSubmitButton}
+                        >
+                          Send
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </div>
