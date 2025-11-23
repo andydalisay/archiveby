@@ -25,6 +25,9 @@ function Feed({ user }) {
   const [showPostMenu, setShowPostMenu] = useState({});
   const [showBlogEditor, setShowBlogEditor] = useState(false);
   const [viewingPost, setViewingPost] = useState(null);
+  const [countryFilter, setCountryFilter] = useState('');
+  const [durationFilter, setDurationFilter] = useState('');
+  const [holidayTypeFilter, setHolidayTypeFilter] = useState('');
 
   const MAX_CHARS = 280;
   const { colors, darkMode, toggleDarkMode } = useTheme();
@@ -78,17 +81,36 @@ function Feed({ user }) {
   }, [user.id]);
 
   useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setFilteredPosts(posts);
-    } else {
+    let filtered = posts;
+
+    // Apply search query filter
+    if (searchQuery.trim() !== '') {
       const query = searchQuery.toLowerCase();
-      const filtered = posts.filter(post =>
+      filtered = filtered.filter(post =>
         post.content.toLowerCase().includes(query) ||
-        post.user_id.toLowerCase().includes(query)
+        post.user_id.toLowerCase().includes(query) ||
+        (post.title && post.title.toLowerCase().includes(query)) ||
+        (post.hashtags && post.hashtags.toLowerCase().includes(query))
       );
-      setFilteredPosts(filtered);
     }
-  }, [searchQuery, posts]);
+
+    // Apply country filter
+    if (countryFilter) {
+      filtered = filtered.filter(post => post.country === countryFilter);
+    }
+
+    // Apply duration filter
+    if (durationFilter) {
+      filtered = filtered.filter(post => post.duration === durationFilter);
+    }
+
+    // Apply holiday type filter
+    if (holidayTypeFilter) {
+      filtered = filtered.filter(post => post.trip_type === holidayTypeFilter);
+    }
+
+    setFilteredPosts(filtered);
+  }, [searchQuery, posts, countryFilter, durationFilter, holidayTypeFilter]);
 
   const fetchUnreadNotifications = async () => {
     try {
@@ -447,6 +469,11 @@ function Feed({ user }) {
   const remainingChars = MAX_CHARS - newPost.length;
   const editRemainingChars = MAX_CHARS - editContent.length;
 
+  // Get unique values for filters
+  const uniqueCountries = [...new Set(posts.filter(p => p.country).map(p => p.country))].sort();
+  const uniqueDurations = [...new Set(posts.filter(p => p.duration).map(p => p.duration))].sort();
+  const uniqueHolidayTypes = [...new Set(posts.filter(p => p.trip_type).map(p => p.trip_type))].sort();
+
   if (showProfile) {
     return <Profile user={user} onBack={() => setShowProfile(false)} />;
   }
@@ -561,6 +588,38 @@ function Feed({ user }) {
       fontFamily: 'inherit',
       transition: 'all 0.2s ease',
       outline: 'none',
+      marginBottom: '0.75rem',
+    },
+    filterChips: {
+      display: 'flex',
+      gap: '0.75rem',
+      flexWrap: 'wrap',
+    },
+    filterChip: {
+      padding: '0.5rem 1rem',
+      background: colors.background,
+      border: `1.5px solid ${colors.border}`,
+      borderRadius: '20px',
+      fontSize: '0.85rem',
+      fontWeight: '600',
+      color: colors.text,
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+      outline: 'none',
+      fontFamily: 'inherit',
+    },
+    filterChipActive: {
+      padding: '0.5rem 1rem',
+      background: colors.pink,
+      border: `1.5px solid ${colors.pink}`,
+      borderRadius: '20px',
+      fontSize: '0.85rem',
+      fontWeight: '600',
+      color: 'white',
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+      outline: 'none',
+      fontFamily: 'inherit',
     },
     createPost: {
       background: colors.cardBackground,
@@ -893,23 +952,29 @@ function Feed({ user }) {
       transition: 'all 0.2s ease',
     },
     blogPreview: {
+      position: 'relative',
       marginBottom: '0',
+      marginTop: 'calc(-1.5rem - 1px)',
+      marginLeft: 'calc(-1.5rem - 1px)',
+      marginRight: 'calc(-1.5rem - 1px)',
+      width: 'calc(100% + 3rem + 2px)',
     },
     blogImageContainer: {
       position: 'relative',
       marginBottom: '1.5rem',
-      marginLeft: 'calc(-1.5rem - 1px)',
-      marginRight: 'calc(-1.5rem - 1px)',
-      marginTop: 'calc(-1.5rem - 1px)',
-      width: 'calc(100% + 3rem + 2px)',
-      borderRadius: '12px 12px 0 0',
+      width: '100%',
       overflow: 'hidden',
+      lineHeight: 0,
+      fontSize: 0,
     },
     blogImage: {
       width: '100%',
       height: '300px',
       objectFit: 'cover',
       display: 'block',
+      margin: 0,
+      padding: 0,
+      verticalAlign: 'top',
     },
     categoryTag: {
       position: 'absolute',
@@ -917,9 +982,9 @@ function Feed({ user }) {
       left: '1.5rem',
       background: 'rgba(255, 248, 240, 0.95)',
       color: '#d97706',
-      padding: '0.5rem 1.25rem',
-      borderRadius: '20px',
-      fontSize: '0.9rem',
+      padding: '1rem 1.5rem',
+      borderRadius: '24px',
+      fontSize: '0.95rem',
       fontWeight: '600',
       textTransform: 'lowercase',
       boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
@@ -929,6 +994,8 @@ function Feed({ user }) {
       gap: '1.5rem',
       alignItems: 'flex-start',
       justifyContent: 'space-between',
+      paddingLeft: '1.5rem',
+      paddingRight: '1.5rem',
     },
     blogLeftSection: {
       flex: 1,
@@ -971,6 +1038,7 @@ function Feed({ user }) {
       fontSize: '0.8rem',
       color: colors.textSecondary,
       marginTop: '0.15rem',
+      textAlign: 'left',
     },
     blogTitle: {
       fontSize: '1.5rem',
@@ -999,16 +1067,20 @@ function Feed({ user }) {
       color: colors.text,
     },
     seeMoreLink: {
-      color: colors.pink,
-      fontSize: '0.875rem',
+      color: 'white',
+      fontSize: '1.5rem',
       fontWeight: '600',
       cursor: 'pointer',
-      textDecoration: 'underline',
       transition: 'all 0.2s ease',
-      background: 'transparent',
+      background: colors.pink,
       border: 'none',
-      padding: 0,
-      marginTop: 'auto',
+      width: '3.5rem',
+      height: '3.5rem',
+      borderRadius: '50%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
     },
     blogActionsHorizontal: {
       display: 'flex',
@@ -1118,6 +1190,38 @@ function Feed({ user }) {
           onChange={(e) => setSearchQuery(e.target.value)}
           style={styles.searchInput}
         />
+        <div style={styles.filterChips}>
+          <select
+            value={countryFilter}
+            onChange={(e) => setCountryFilter(e.target.value)}
+            style={countryFilter ? styles.filterChipActive : styles.filterChip}
+          >
+            <option value="">All Countries</option>
+            {uniqueCountries.map(country => (
+              <option key={country} value={country}>{country}</option>
+            ))}
+          </select>
+          <select
+            value={durationFilter}
+            onChange={(e) => setDurationFilter(e.target.value)}
+            style={durationFilter ? styles.filterChipActive : styles.filterChip}
+          >
+            <option value="">All Durations</option>
+            {uniqueDurations.map(duration => (
+              <option key={duration} value={duration}>{duration}</option>
+            ))}
+          </select>
+          <select
+            value={holidayTypeFilter}
+            onChange={(e) => setHolidayTypeFilter(e.target.value)}
+            style={holidayTypeFilter ? styles.filterChipActive : styles.filterChip}
+          >
+            <option value="">All Holiday Types</option>
+            {uniqueHolidayTypes.map(type => (
+              <option key={type} value={type}>{type}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div style={styles.createPost}>
@@ -1173,20 +1277,22 @@ function Feed({ user }) {
         ) : (
           filteredPosts.map((post) => (
             <div key={post.id} style={styles.post}>
-              <div style={styles.postHeader}>
-                <div style={styles.postHeaderLeft}>
-                  <strong>User {post.user_id.substring(0, 8)}</strong>
-                  {post.user_id !== user.id && (
-                    <button
-                      onClick={() => toggleFollow(post.user_id)}
-                      style={follows[post.user_id] ? styles.followingButton : styles.followButton}
-                    >
-                      {follows[post.user_id] ? 'Following' : 'Follow'}
-                    </button>
-                  )}
+              {!(post.post_type === 'blog' || post.title) && (
+                <div style={styles.postHeader}>
+                  <div style={styles.postHeaderLeft}>
+                    <strong>User {post.user_id.substring(0, 8)}</strong>
+                    {post.user_id !== user.id && (
+                      <button
+                        onClick={() => toggleFollow(post.user_id)}
+                        style={follows[post.user_id] ? styles.followingButton : styles.followButton}
+                      >
+                        {follows[post.user_id] ? 'Following' : 'Follow'}
+                      </button>
+                    )}
+                  </div>
+                  <span style={styles.postDate}>{getRelativeTime(post.created_at)}</span>
                 </div>
-                <span style={styles.postDate}>{getRelativeTime(post.created_at)}</span>
-              </div>
+              )}
 
               {editingPost === post.id ? (
                 <div style={styles.editForm}>
@@ -1269,13 +1375,6 @@ function Feed({ user }) {
                               <span style={styles.metadataChip}>⏱️ {post.duration}</span>
                             )}
                           </div>
-                          <div style={styles.blogHashtags}>
-                            {post.hashtags && post.hashtags.split(' ').filter(tag => tag.trim()).map((tag, index) => (
-                              <span key={index} style={styles.metadataChip}>
-                                {tag.startsWith('#') ? tag : `#${tag}`}
-                              </span>
-                            ))}
-                          </div>
                         </div>
                         <div style={styles.blogRightSection}>
                           <div style={styles.blogActionsHorizontal}>
@@ -1289,13 +1388,22 @@ function Feed({ user }) {
                               💬 {comments[post.id]?.length || 0}
                             </button>
                           </div>
-                          <button
-                            onClick={() => handleViewPost(post)}
-                            style={styles.seeMoreLink}
-                          >
-                            See more
-                          </button>
                         </div>
+                      </div>
+                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingLeft: '1.5rem', paddingRight: '1.5rem'}}>
+                        <div style={styles.blogHashtags}>
+                          {post.hashtags && post.hashtags.split(' ').filter(tag => tag.trim()).map((tag, index) => (
+                            <span key={index} style={styles.metadataChip}>
+                              {tag.startsWith('#') ? tag : `#${tag}`}
+                            </span>
+                          ))}
+                        </div>
+                        <button
+                          onClick={() => handleViewPost(post)}
+                          style={styles.seeMoreLink}
+                        >
+                          →
+                        </button>
                       </div>
                     </div>
                   ) : (
