@@ -1345,6 +1345,48 @@ function Feed({ user }) {
                               {post.trip_type.toLowerCase()}
                             </div>
                           )}
+                          <div style={{ position: 'absolute', top: '1rem', right: '1.5rem' }}>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); togglePostMenu(post.id); }}
+                              style={{...styles.postMenuButton, background: 'rgba(255, 255, 255, 0.9)', color: '#333'}}
+                            >
+                              ⋯
+                            </button>
+                            {showPostMenu[post.id] && (
+                              <div style={styles.postMenuDropdown}>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleShare(post.id); }}
+                                  style={styles.postMenuItem}
+                                >
+                                  🔗 Share
+                                </button>
+                                {post.user_id === user.id && (
+                                  <>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); alert('Edit blog post coming soon!'); setShowPostMenu({ ...showPostMenu, [post.id]: false }); }}
+                                      style={styles.postMenuItem}
+                                    >
+                                      ✏️ Edit
+                                    </button>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); deletePost(post.id); }}
+                                      style={styles.postMenuItemDanger}
+                                    >
+                                      🗑️ Delete
+                                    </button>
+                                  </>
+                                )}
+                                {post.user_id !== user.id && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleReport(post.id); }}
+                                    style={styles.postMenuItemDanger}
+                                  >
+                                    ⚠️ Report
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
                       <div style={styles.blogContentWrapper}>
@@ -1377,6 +1419,50 @@ function Feed({ user }) {
                           </div>
                         </div>
                         <div style={styles.blogRightSection}>
+                          {!(post.blocks && post.blocks[0] && post.blocks[0].type === 'image') && (
+                            <div style={{ position: 'relative', marginBottom: '1rem' }}>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); togglePostMenu(post.id); }}
+                                style={styles.postMenuButton}
+                              >
+                                ⋯
+                              </button>
+                              {showPostMenu[post.id] && (
+                                <div style={styles.postMenuDropdown}>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleShare(post.id); }}
+                                    style={styles.postMenuItem}
+                                  >
+                                    🔗 Share
+                                  </button>
+                                  {post.user_id === user.id && (
+                                    <>
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); alert('Edit blog post coming soon!'); setShowPostMenu({ ...showPostMenu, [post.id]: false }); }}
+                                        style={styles.postMenuItem}
+                                      >
+                                        ✏️ Edit
+                                      </button>
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); deletePost(post.id); }}
+                                        style={styles.postMenuItemDanger}
+                                      >
+                                        🗑️ Delete
+                                      </button>
+                                    </>
+                                  )}
+                                  {post.user_id !== user.id && (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleReport(post.id); }}
+                                      style={styles.postMenuItemDanger}
+                                    >
+                                      ⚠️ Report
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
                           <div style={styles.blogActionsHorizontal}>
                             <button
                               onClick={() => toggleLike(post.id)}
@@ -1515,19 +1601,7 @@ function Feed({ user }) {
       </div>
 
       {showBlogEditor && (
-        <div style={styles.modalOverlay} onClick={() => setShowBlogEditor(false)}>
-          <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <div style={styles.modalHeader}>
-              <h2>Create Blog Post</h2>
-              <button onClick={() => setShowBlogEditor(false)} style={styles.closeButton}>
-                &times;
-              </button>
-            </div>
-            <div style={styles.modalBody}>
-              <PostEditor onSave={handleCreateBlog} onCancel={() => setShowBlogEditor(false)} />
-            </div>
-          </div>
-        </div>
+        <PostEditor onSave={handleCreateBlog} onClose={() => setShowBlogEditor(false)} />
       )}
 
       {viewingPost && (
