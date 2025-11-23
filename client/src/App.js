@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
+import { ThemeProvider } from './ThemeContext';
 import Auth from './components/Auth';
 import Feed from './components/Feed';
 import './App.css';
@@ -30,9 +31,11 @@ function App() {
   }
 
   return (
-    <div className="App">
-      {!user ? <Auth /> : <Feed user={user} />}
-    </div>
+    <ThemeProvider>
+      <div className="App">
+        {!user ? <Auth /> : <Feed user={user} />}
+      </div>
+    </ThemeProvider>
   );
 }
 
