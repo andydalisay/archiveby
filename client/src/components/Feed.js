@@ -478,25 +478,347 @@ function Feed({ user }) {
     return <Profile user={user} onBack={() => setShowProfile(false)} />;
   }
 
+  if (viewingPost) {
+    return (
+      <div style={{
+        maxWidth: '900px',
+        margin: '0 auto',
+        padding: '1.5rem 1rem',
+        minHeight: '100vh',
+        background: colors.background,
+      }}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '1.5rem',
+          padding: '1.25rem 1.5rem',
+          background: colors.cardBackground,
+          borderRadius: '12px',
+          boxShadow: `0 2px 12px ${colors.shadow}`,
+          color: colors.text,
+          border: `1px solid ${colors.border}`,
+        }}>
+          <button
+            onClick={() => setViewingPost(null)}
+            style={{
+              padding: '0.5rem 0.875rem',
+              background: colors.navy,
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: '600',
+              transition: 'all 0.2s ease',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+            }}
+          >
+            ← Back
+          </button>
+          <h1>Blog Post</h1>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <span style={{ marginRight: '1rem', fontSize: '0.9rem', color: colors.textSecondary }}>{user.email}</span>
+            <button onClick={toggleDarkMode} style={{
+              padding: '0.5rem 0.875rem',
+              background: colors.navy,
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              marginRight: '0.5rem',
+              fontSize: '1rem',
+              transition: 'all 0.2s ease',
+            }}>
+              {darkMode ? '☀️' : '🌙'}
+            </button>
+            <button onClick={() => setShowNotifications(true)} style={{
+              padding: '0.5rem 0.875rem',
+              background: colors.pink,
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              marginRight: '0.5rem',
+              position: 'relative',
+              fontSize: '1rem',
+              transition: 'all 0.2s ease',
+            }}>
+              🔔
+              {unreadNotifications > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: '-6px',
+                  right: '-6px',
+                  background: colors.danger,
+                  color: '#fff',
+                  borderRadius: '50%',
+                  width: '20px',
+                  height: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.7rem',
+                  fontWeight: 'bold',
+                  border: '2px solid white',
+                }}>{unreadNotifications}</span>
+              )}
+            </button>
+            <button onClick={() => setShowProfile(true)} style={{
+              padding: '0.5rem 0.875rem',
+              background: colors.navy,
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              marginRight: '0.5rem',
+              fontWeight: '600',
+              transition: 'all 0.2s ease',
+            }}>
+              Profile
+            </button>
+            <button onClick={handleSignOut} style={{
+              padding: '0.5rem 0.875rem',
+              background: colors.textSecondary,
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: '600',
+              transition: 'all 0.2s ease',
+            }}>
+              Sign Out
+            </button>
+          </div>
+        </div>
+
+        <div style={{
+          background: colors.cardBackground,
+          padding: '1.5rem',
+          borderRadius: '12px',
+          boxShadow: `0 2px 8px ${colors.shadow}`,
+          color: colors.text,
+          border: `1px solid ${colors.border}`,
+          transition: 'all 0.2s ease',
+          overflow: 'hidden',
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            marginBottom: '0.5rem',
+            fontSize: '0.9rem',
+            alignItems: 'center',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <strong>User {viewingPost.user_id.substring(0, 8)}</strong>
+              {viewingPost.user_id !== user.id && (
+                <button
+                  onClick={() => toggleFollow(viewingPost.user_id)}
+                  style={follows[viewingPost.user_id] ? {
+                    padding: '0.35rem 0.75rem',
+                    background: colors.navy,
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '0.8rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  } : {
+                    padding: '0.35rem 0.75rem',
+                    background: colors.pink,
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '0.8rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  {follows[viewingPost.user_id] ? 'Following' : 'Follow'}
+                </button>
+              )}
+            </div>
+            <span style={{ color: colors.textSecondary, fontSize: '0.8rem' }}>{getRelativeTime(viewingPost.created_at)}</span>
+          </div>
+
+          <PostRenderer post={viewingPost} />
+
+          <div style={{
+            display: 'flex',
+            gap: '0.5rem',
+            marginTop: '1rem',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+          }}>
+            <button
+              onClick={() => toggleLike(viewingPost.id)}
+              style={likes[viewingPost.id]?.userLiked ? {
+                padding: '0.5rem 0.875rem',
+                background: colors.pink,
+                color: 'white',
+                border: `1.5px solid transparent`,
+                borderRadius: '8px',
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                fontWeight: '600',
+                transition: 'all 0.2s ease',
+              } : {
+                padding: '0.5rem 0.875rem',
+                background: colors.background,
+                color: colors.text,
+                border: `1.5px solid ${colors.border}`,
+                borderRadius: '8px',
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                fontWeight: '600',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              {likes[viewingPost.id]?.userLiked ? '❤️' : '🤍'} {likes[viewingPost.id]?.count || 0}
+            </button>
+            <button onClick={() => toggleComments(viewingPost.id)} style={{
+              padding: '0.5rem 0.875rem',
+              background: colors.background,
+              color: colors.text,
+              border: `1.5px solid ${colors.border}`,
+              borderRadius: '8px',
+              fontSize: '0.875rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}>
+              💬 {comments[viewingPost.id]?.length || 0}
+            </button>
+          </div>
+
+          {showingComments[viewingPost.id] && (
+            <div style={{
+              marginTop: '1.25rem',
+              paddingTop: '1.25rem',
+              borderTop: `1.5px solid ${colors.border}`,
+            }}>
+              {comments[viewingPost.id]?.map((comment) => (
+                <div key={comment.id} style={{
+                  padding: '0.875rem 1rem',
+                  marginBottom: '0.625rem',
+                  background: colors.background,
+                  borderRadius: '10px',
+                  border: `1px solid ${colors.border}`,
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    marginBottom: '0.25rem',
+                    fontSize: '0.85rem',
+                  }}>
+                    <strong>User {comment.user_id.substring(0, 8)}</strong>
+                    <div>
+                      <span style={{ color: colors.textSecondary, fontSize: '0.75rem', marginRight: '0.5rem' }}>
+                        {getRelativeTime(comment.created_at)}
+                      </span>
+                      {comment.user_id === user.id && (
+                        <button
+                          onClick={() => deleteComment(comment.id, viewingPost.id)}
+                          style={{
+                            padding: '0.3rem 0.625rem',
+                            background: colors.danger,
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '0.75rem',
+                            fontWeight: '600',
+                            transition: 'all 0.2s ease',
+                          }}
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <p style={{ margin: 0, fontSize: '0.9rem', color: colors.text }}>{comment.content}</p>
+                </div>
+              ))}
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+                <textarea
+                  placeholder="Add a comment..."
+                  value={newComment[viewingPost.id] || ''}
+                  onChange={(e) =>
+                    setNewComment({ ...newComment, [viewingPost.id]: e.target.value })
+                  }
+                  style={{
+                    flex: 1,
+                    padding: '0.75rem 1rem',
+                    border: `1.5px solid ${colors.border}`,
+                    borderRadius: '8px',
+                    fontSize: '0.875rem',
+                    background: colors.background,
+                    color: colors.text,
+                    fontFamily: 'inherit',
+                    resize: 'vertical',
+                    transition: 'all 0.2s ease',
+                    outline: 'none',
+                  }}
+                  rows="2"
+                />
+                <button
+                  onClick={() => addComment(viewingPost.id)}
+                  style={{
+                    padding: '0.75rem 1.125rem',
+                    background: colors.pink,
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    fontWeight: '600',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  Send
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   const styles = {
     container: {
       maxWidth: '680px',
       margin: '0 auto',
-      padding: '1.5rem 1rem',
+      padding: '6rem 1rem 1.5rem',
       minHeight: '100vh',
-      background: colors.background,
+      background: 'transparent',
     },
     header: {
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
       marginBottom: '1.5rem',
-      padding: '1.25rem 1.5rem',
+      padding: '1.25rem 2rem',
       background: colors.cardBackground,
-      borderRadius: '12px',
+      borderRadius: '0',
       boxShadow: `0 2px 12px ${colors.shadow}`,
       color: colors.text,
-      border: `1px solid ${colors.border}`,
+      border: 'none',
+      borderBottom: `1px solid ${colors.border}`,
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 1000,
     },
     headerButtons: {
       display: 'flex',
@@ -513,7 +835,7 @@ function Feed({ user }) {
       background: colors.navy,
       color: '#fff',
       border: 'none',
-      borderRadius: '8px',
+      borderRadius: '32px',
       cursor: 'pointer',
       marginRight: '0.5rem',
       fontSize: '1rem',
@@ -524,7 +846,7 @@ function Feed({ user }) {
       background: colors.pink,
       color: '#fff',
       border: 'none',
-      borderRadius: '8px',
+      borderRadius: '32px',
       cursor: 'pointer',
       marginRight: '0.5rem',
       position: 'relative',
@@ -552,7 +874,7 @@ function Feed({ user }) {
       background: colors.navy,
       color: '#fff',
       border: 'none',
-      borderRadius: '8px',
+      borderRadius: '32px',
       cursor: 'pointer',
       marginRight: '0.5rem',
       fontWeight: '600',
@@ -563,7 +885,7 @@ function Feed({ user }) {
       background: colors.textSecondary,
       color: 'white',
       border: 'none',
-      borderRadius: '8px',
+      borderRadius: '32px',
       cursor: 'pointer',
       fontWeight: '600',
       transition: 'all 0.2s ease',
@@ -571,7 +893,7 @@ function Feed({ user }) {
     searchBar: {
       background: colors.cardBackground,
       padding: '1rem',
-      borderRadius: '12px',
+      borderRadius: '32px',
       boxShadow: `0 2px 8px ${colors.shadow}`,
       marginBottom: '1.5rem',
       border: `1px solid ${colors.border}`,
@@ -580,7 +902,7 @@ function Feed({ user }) {
       width: '100%',
       padding: '0.75rem 1rem',
       border: `1.5px solid ${colors.border}`,
-      borderRadius: '8px',
+      borderRadius: '32px',
       fontSize: '0.95rem',
       background: colors.background,
       color: colors.text,
@@ -624,7 +946,7 @@ function Feed({ user }) {
     createPost: {
       background: colors.cardBackground,
       padding: '1.5rem',
-      borderRadius: '12px',
+      borderRadius: '32px',
       boxShadow: `0 2px 12px ${colors.shadow}`,
       marginBottom: '1.5rem',
       border: `1px solid ${colors.border}`,
@@ -637,7 +959,7 @@ function Feed({ user }) {
     textarea: {
       padding: '0.875rem 1rem',
       border: `1.5px solid ${colors.border}`,
-      borderRadius: '10px',
+      borderRadius: '32px',
       fontSize: '0.95rem',
       fontFamily: 'inherit',
       resize: 'vertical',
@@ -663,7 +985,7 @@ function Feed({ user }) {
       background: colors.pink,
       color: 'white',
       border: 'none',
-      borderRadius: '8px',
+      borderRadius: '32px',
       fontSize: '0.95rem',
       fontWeight: '600',
       cursor: 'pointer',
@@ -677,7 +999,7 @@ function Feed({ user }) {
     post: {
       background: colors.cardBackground,
       padding: '1.5rem',
-      borderRadius: '12px',
+      borderRadius: '32px',
       boxShadow: `0 2px 8px ${colors.shadow}`,
       color: colors.text,
       border: `1px solid ${colors.border}`,
@@ -701,7 +1023,7 @@ function Feed({ user }) {
       background: colors.pink,
       color: '#fff',
       border: 'none',
-      borderRadius: '6px',
+      borderRadius: '32px',
       fontSize: '0.8rem',
       fontWeight: '600',
       cursor: 'pointer',
@@ -712,7 +1034,7 @@ function Feed({ user }) {
       background: colors.navy,
       color: '#fff',
       border: 'none',
-      borderRadius: '6px',
+      borderRadius: '32px',
       fontSize: '0.8rem',
       fontWeight: '600',
       cursor: 'pointer',
@@ -739,7 +1061,7 @@ function Feed({ user }) {
       background: colors.background,
       color: colors.text,
       border: `1.5px solid ${colors.border}`,
-      borderRadius: '8px',
+      borderRadius: '32px',
       fontSize: '0.875rem',
       cursor: 'pointer',
       display: 'flex',
@@ -753,7 +1075,7 @@ function Feed({ user }) {
       background: colors.pink,
       color: 'white',
       border: `1.5px solid transparent`,
-      borderRadius: '8px',
+      borderRadius: '32px',
       fontSize: '0.875rem',
       cursor: 'pointer',
       display: 'flex',
@@ -767,7 +1089,7 @@ function Feed({ user }) {
       background: colors.background,
       color: colors.text,
       border: `1.5px solid ${colors.border}`,
-      borderRadius: '8px',
+      borderRadius: '32px',
       fontSize: '0.875rem',
       fontWeight: '600',
       cursor: 'pointer',
@@ -778,7 +1100,7 @@ function Feed({ user }) {
       background: colors.success,
       color: 'white',
       border: 'none',
-      borderRadius: '8px',
+      borderRadius: '32px',
       fontSize: '0.875rem',
       fontWeight: '600',
       cursor: 'pointer',
@@ -789,7 +1111,7 @@ function Feed({ user }) {
       background: colors.danger,
       color: 'white',
       border: 'none',
-      borderRadius: '8px',
+      borderRadius: '32px',
       fontSize: '0.875rem',
       fontWeight: '600',
       cursor: 'pointer',
@@ -804,7 +1126,7 @@ function Feed({ user }) {
       padding: '0.875rem 1rem',
       marginBottom: '0.625rem',
       background: colors.background,
-      borderRadius: '10px',
+      borderRadius: '32px',
       border: `1px solid ${colors.border}`,
     },
     commentHeader: {
@@ -827,7 +1149,7 @@ function Feed({ user }) {
       flex: 1,
       padding: '0.75rem 1rem',
       border: `1.5px solid ${colors.border}`,
-      borderRadius: '8px',
+      borderRadius: '32px',
       fontSize: '0.875rem',
       background: colors.background,
       color: colors.text,
@@ -841,7 +1163,7 @@ function Feed({ user }) {
       background: colors.pink,
       color: '#fff',
       border: 'none',
-      borderRadius: '8px',
+      borderRadius: '32px',
       cursor: 'pointer',
       fontSize: '0.875rem',
       fontWeight: '600',
@@ -852,7 +1174,7 @@ function Feed({ user }) {
       background: colors.danger,
       color: '#fff',
       border: 'none',
-      borderRadius: '6px',
+      borderRadius: '32px',
       cursor: 'pointer',
       fontSize: '0.75rem',
       fontWeight: '600',
@@ -877,7 +1199,7 @@ function Feed({ user }) {
       background: colors.textSecondary,
       color: 'white',
       border: 'none',
-      borderRadius: '8px',
+      borderRadius: '32px',
       fontSize: '0.875rem',
       fontWeight: '600',
       cursor: 'pointer',
@@ -888,7 +1210,7 @@ function Feed({ user }) {
       background: colors.pink,
       color: 'white',
       border: 'none',
-      borderRadius: '8px',
+      borderRadius: '32px',
       fontSize: '0.875rem',
       fontWeight: '600',
       cursor: 'pointer',
@@ -904,7 +1226,7 @@ function Feed({ user }) {
       background: 'transparent',
       color: colors.text,
       border: 'none',
-      borderRadius: '8px',
+      borderRadius: '50%',
       cursor: 'pointer',
       fontSize: '1.2rem',
       fontWeight: 'bold',
@@ -917,7 +1239,7 @@ function Feed({ user }) {
       right: 0,
       background: colors.cardBackground,
       border: `1.5px solid ${colors.border}`,
-      borderRadius: '8px',
+      borderRadius: '32px',
       boxShadow: `0 4px 12px ${colors.shadow}`,
       zIndex: 100,
       minWidth: '150px',
@@ -961,7 +1283,7 @@ function Feed({ user }) {
     },
     blogImageContainer: {
       position: 'relative',
-      marginBottom: '1.5rem',
+      marginBottom: '0',
       width: '100%',
       overflow: 'hidden',
       lineHeight: 0,
@@ -980,10 +1302,10 @@ function Feed({ user }) {
       position: 'absolute',
       top: '1rem',
       left: '1.5rem',
-      background: 'rgba(255, 248, 240, 0.95)',
+      background: 'rgba(255, 248, 240, 0.8)',
       color: '#d97706',
       padding: '1rem 1.5rem',
-      borderRadius: '24px',
+      borderRadius: '40px',
       fontSize: '0.95rem',
       fontWeight: '600',
       textTransform: 'lowercase',
@@ -991,17 +1313,19 @@ function Feed({ user }) {
     },
     blogContentWrapper: {
       display: 'flex',
-      gap: '1.5rem',
-      alignItems: 'flex-start',
+      gap: '1rem',
+      alignItems: 'stretch',
       justifyContent: 'space-between',
       paddingLeft: '1.5rem',
       paddingRight: '1.5rem',
+      paddingTop: '1.25rem',
+      paddingBottom: '0',
     },
     blogLeftSection: {
       flex: 1,
       display: 'flex',
       flexDirection: 'column',
-      gap: '0.75rem',
+      gap: '0.25rem',
     },
     blogRightSection: {
       display: 'flex',
@@ -1009,13 +1333,12 @@ function Feed({ user }) {
       gap: '0.75rem',
       alignItems: 'flex-end',
       justifyContent: 'space-between',
-      minHeight: '100%',
     },
     blogUserSection: {
       display: 'flex',
       alignItems: 'center',
       gap: '0.75rem',
-      marginBottom: '0.5rem',
+      marginBottom: '0',
     },
     userAvatar: {
       width: '40px',
@@ -1161,8 +1484,27 @@ function Feed({ user }) {
       )}
 
       <div style={styles.header}>
-        <h1>Social Feed</h1>
+        <h1>Recapd</h1>
         <div style={styles.headerButtons}>
+          <button onClick={() => setShowBlogEditor(true)} style={{
+            padding: '0.5rem 0.875rem',
+            background: colors.pink,
+            color: '#fff',
+            border: 'none',
+            borderRadius: '50%',
+            cursor: 'pointer',
+            marginRight: '0.5rem',
+            fontSize: '1.5rem',
+            fontWeight: 'bold',
+            transition: 'all 0.2s ease',
+            width: '40px',
+            height: '40px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            +
+          </button>
           <span style={styles.userEmail}>{user.email}</span>
           <button onClick={toggleDarkMode} style={styles.themeToggle}>
             {darkMode ? '☀️' : '🌙'}
@@ -1222,51 +1564,6 @@ function Feed({ user }) {
             ))}
           </select>
         </div>
-      </div>
-
-      <div style={styles.createPost}>
-        <form onSubmit={createPost} style={styles.form}>
-          <textarea
-            placeholder="What's on your mind?"
-            value={newPost}
-            onChange={(e) => setNewPost(e.target.value)}
-            style={{
-              ...styles.textarea,
-              borderColor: remainingChars < 0 ? colors.danger : colors.border,
-            }}
-            rows="3"
-            maxLength={MAX_CHARS}
-          />
-          <div style={styles.postFooter}>
-            <span
-              style={{
-                ...styles.charCounter,
-                color: remainingChars < 20 ? colors.danger : colors.textSecondary,
-              }}
-            >
-              {remainingChars} characters remaining
-            </span>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button
-                type="submit"
-                disabled={loading || remainingChars < 0}
-                style={{
-                  ...styles.postButton,
-                  opacity: loading || remainingChars < 0 ? 0.5 : 1,
-                }}
-              >
-                {loading ? 'Posting...' : 'Post'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowBlogEditor(true)}
-                style={{...styles.postButton, background: colors.navy}}
-              >
-                Create Blog Post
-              </button>
-            </div>
-          </div>
-        </form>
       </div>
 
       <div style={styles.posts}>
@@ -1348,7 +1645,7 @@ function Feed({ user }) {
                           <div style={{ position: 'absolute', top: '1rem', right: '1.5rem' }}>
                             <button
                               onClick={(e) => { e.stopPropagation(); togglePostMenu(post.id); }}
-                              style={{...styles.postMenuButton, background: 'rgba(255, 255, 255, 0.9)', color: '#333'}}
+                              style={{...styles.postMenuButton, background: 'rgba(255, 255, 255, 0.8)', color: '#333', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
                             >
                               ⋯
                             </button>
@@ -1408,7 +1705,24 @@ function Feed({ user }) {
                               </div>
                             </div>
                           </div>
-                          <h2 style={styles.blogTitle}>{post.title}</h2>
+                          <h2 style={{...styles.blogTitle, marginBottom: '0'}}>{post.title}</h2>
+                          <div style={{
+                            fontSize: '0.85rem',
+                            color: colors.textSecondary,
+                            fontWeight: '500',
+                            letterSpacing: '0.3px',
+                            marginBottom: '0.5rem',
+                            textAlign: 'left',
+                          }}>
+                            {post.hashtags && post.hashtags.split(' ').filter(tag => tag.trim()).map((tag, index) => (
+                              <span key={index} style={{
+                                color: '#3A8B7E',
+                                marginRight: '0.75rem',
+                              }}>
+                                {tag.startsWith('#') ? tag : `#${tag}`}
+                              </span>
+                            ))}
+                          </div>
                           <div style={styles.blogMetadata}>
                             {post.country && (
                               <span style={styles.metadataChip}>📍 {post.country}</span>
@@ -1474,22 +1788,13 @@ function Feed({ user }) {
                               💬 {comments[post.id]?.length || 0}
                             </button>
                           </div>
+                          <button
+                            onClick={() => handleViewPost(post)}
+                            style={styles.seeMoreLink}
+                          >
+                            →
+                          </button>
                         </div>
-                      </div>
-                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingLeft: '1.5rem', paddingRight: '1.5rem'}}>
-                        <div style={styles.blogHashtags}>
-                          {post.hashtags && post.hashtags.split(' ').filter(tag => tag.trim()).map((tag, index) => (
-                            <span key={index} style={styles.metadataChip}>
-                              {tag.startsWith('#') ? tag : `#${tag}`}
-                            </span>
-                          ))}
-                        </div>
-                        <button
-                          onClick={() => handleViewPost(post)}
-                          style={styles.seeMoreLink}
-                        >
-                          →
-                        </button>
                       </div>
                     </div>
                   ) : (
@@ -1602,27 +1907,6 @@ function Feed({ user }) {
 
       {showBlogEditor && (
         <PostEditor onSave={handleCreateBlog} onClose={() => setShowBlogEditor(false)} />
-      )}
-
-      {viewingPost && (
-        <div style={styles.modalOverlay} onClick={() => setViewingPost(null)}>
-          <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <div style={styles.modalHeader}>
-              <div>
-                <div style={styles.postHeaderLeft}>
-                  <strong>User {viewingPost.user_id.substring(0, 8)}</strong>
-                </div>
-                <span style={styles.postDate}>{getRelativeTime(viewingPost.created_at)}</span>
-              </div>
-              <button onClick={() => setViewingPost(null)} style={styles.closeButton}>
-                &times;
-              </button>
-            </div>
-            <div style={styles.modalBody}>
-              <PostRenderer post={viewingPost} />
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );
